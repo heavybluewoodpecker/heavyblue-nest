@@ -137,3 +137,85 @@ Expect health `ok` and homepage **HeavyBlue Nest** HTML.
 - Rotate any Cloudflare API token that was pasted into chat/logs.
 - Origin CA private key must stay root-readable only.
 - Tunnel token is equivalent to connector credential — treat as secret.
+
+## nginx log permission error
+
+### Symptom (2026-09-10)
+
+Running bare `nginx` as a normal user failed with:
+
+```text
+the "user" directive makes sense only if the master process runs with super-user privileges, ignored
+open() "/var/log/nginx/error.log" failed (13: Permission denied)
+```
+
+### Cause
+
+System nginx starts the **master process as root** (via systemd). An
+unprivileged `nginx` invocation cannot open `/var/log/nginx/error.log`,
+honor `user www-data;`, bind port 80, or write `/run/nginx.pid`.
+
+This is expected — not a broken install.
+
+### Correct operations
+
+```bash
+sudo nginx -t                 # validate config
+sudo systemctl start nginx    # start if stopped
+sudo systemctl reload nginx   # apply config changes
+sudo systemctl status nginx   # health
+```
+
+Do **not** run plain `nginx` as your login user. Prefer
+`./scripts/deploy-origin.sh`, which already uses `sudo nginx -t` and
+`systemctl reload`.
+
+### Expected log ownership
+
+Do not make logs world-writable. Keep daemon ownership:
+
+```text
+/var/log/nginx/                                 root:adm     755
+/var/log/nginx/access.log                       www-data:adm 640
+/var/log/nginx/error.log                        www-data:adm 640
+/var/log/nginx/heavybluewoodpecker.access.log   root:adm     640
+/var/log/nginx/heavybluewoodpecker.error.log    root:adm     640
+```
+
+Normalize if needed:
+
+```bash
+sudo chown root:adm /var/log/nginx
+sudo chmod 755 /var/log/nginx
+sudo chown www-data:adm /var/log/nginx/access.log /var/log/nginx/error.log
+sudo chmod 640 /var/log/nginx/access.log /var/log/nginx/error.log
+sudo chown root:adm /var/log/nginx/heavybluewoodpecker.access.log \
+                    /var/log/nginx/heavybluewoodpecker.error.log
+sudo chmod 640 /var/log/nginx/heavybluewoodpecker.*.log
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Group `adm` may read logs; only root/systemd should start nginx.
+
+## Local verification (2026-09-10)
+
+On origin host `InternetThief` (Ubuntu):
+
+```bash
+curl -sI -H 'Host: heavybluewoodpecker.com' http://127.0.0.1/
+curl -sI -H 'Host: www.heavybluewoodpecker.com' http://127.0.0.1/
+systemctl is-active nginx
+sudo nginx -t
+```
+
+**Results**
+
+- Apex and `www` Host headers → `HTTP/1.1 200 OK`, `Content-Type: text/html`
+- `nginx.service` → `active (running)`
+- `sudo nginx -t` → successful
+- Headers include `X-Content-Type-Options: nosniff` and
+  `Referrer-Policy: strict-origin-when-cross-origin`
+
+Docroot at verification time also carried operator notes under
+`/var/www/heavybluewoodpecker/README.md` (not part of `public/` deploy;
+prefer this git doc as source of truth).
