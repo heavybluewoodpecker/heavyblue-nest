@@ -1,0 +1,24 @@
+# HeavyBlue Nest — static site
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /style.css
+Allow: /heavyblue-homepage.html
+Allow: /robots.txt
+
+# No CMS / app surfaces on this origin
+Disallow: /wp-admin
+Disallow: /wp-includes
+Disallow: /wp-content
+Disallow: /wordpress
+Disallow: /wp/
+Disallow: /blog/
+Disallow: /xmlrpc.php
+Disallow: /.env
+Disallow: /.git
+Disallow: /phpmyadmin
+Disallow: /admin
+Disallow: /cgi-bin
+
+Sitemap: https://heavybluewoodpecker.net/
+Sitemap: https://heavybluewoodpecker.com/
