@@ -15,7 +15,10 @@
 	],
 	"assets": {
 		"directory": "./public",
-		"binding": "ASSETS"
+		"binding": "ASSETS",
+		// Serve public/404.html with HTTP 404 for unknown paths
+		"not_found_handling": "404-page",
+		"html_handling": "auto-trailing-slash"
 	}
 	/**
 	 * Smart Placement
