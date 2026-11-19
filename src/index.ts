@@ -13,6 +13,22 @@ export default {
 		const url = new URL(request.url);
 		if (url.pathname === '/') url.pathname = '/index.html';
 
-		return env.ASSETS.fetch(new Request(url.toString(), request));
+		const assetResponse = await env.ASSETS.fetch(new Request(url.toString(), request));
+
+		// Fallback if platform 404 handling is unavailable for this path
+		if (assetResponse.status === 404 && !url.pathname.endsWith('/404.html')) {
+			const notFoundUrl = new URL(request.url);
+			notFoundUrl.pathname = '/404.html';
+			const notFound = await env.ASSETS.fetch(new Request(notFoundUrl.toString(), request));
+			if (notFound.ok) {
+				return new Response(notFound.body, {
+					status: 404,
+					statusText: 'Not Found',
+					headers: notFound.headers,
+				});
+			}
+		}
+
+		return assetResponse;
 	},
 } satisfies ExportedHandler<Env>;
